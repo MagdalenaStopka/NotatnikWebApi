@@ -23,7 +23,6 @@ namespace NotatnikWebApi.Controllers
                                 Tytul = n.Tytul,
                                 Tresc = n.Tresc,
                                 DataDodania = n.DataDodania
-                                //DataDodania = (DateTime?)s.DataDodania ?? DateTime.Now
                             }).ToList<NotatkaViewModel>();
             }
             if (notatki.Count == 0)
@@ -55,29 +54,31 @@ namespace NotatnikWebApi.Controllers
             {
                 return NotFound();
             }
-
             return Ok(notatka);
         }
 
         public IHttpActionResult PostNewNotatka(NotatkaViewModel notatka)
         {
             if (!ModelState.IsValid)
-                return BadRequest("Invalid data.");
+               return BadRequest("Nieprawdiłowe dane");
 
             using (var dbContext = new NotatnikEntities())
             {
-                dbContext.Notatka.Add(new Notatka()
+                var entity = new Notatka
                 {
-                    Id = notatka.Id,
                     Tresc = notatka.Tresc,
                     Tytul = notatka.Tytul,
-                  
-                   // DataDodania  =(DateTime.Now)notatka.DataDodania
-                    DataDodania=  DateTime.Now
-
-                });
-
-                dbContext.SaveChanges();
+                    DataDodania = DateTime.Now
+                };
+                if (!string.IsNullOrEmpty(entity.Tytul) && !string.IsNullOrEmpty(entity.Tresc))
+                {
+                    dbContext.Notatka.Add(entity);
+                    dbContext.SaveChanges();
+                }
+                else
+                {
+                    return BadRequest("nieprawidłowe dane- tytuł lub treść notatki nie może być pusta");
+                }
             }
 
             return Ok();
@@ -86,19 +87,51 @@ namespace NotatnikWebApi.Controllers
         public IHttpActionResult Delete(int id)
         {
             if (id <= 0)
-                return BadRequest("Not a valid notatka id");
+                return BadRequest("Nieprawidłowe id notatki");
 
             using (var dbContext = new NotatnikEntities())
             {
                 var notatka = dbContext.Notatka
                     .Where(n => n.Id == id)
                     .FirstOrDefault();
-                
-                dbContext.Entry(notatka).State = System.Data.Entity.EntityState.Deleted;
-                dbContext.SaveChanges();
+                if (notatka == null)
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    dbContext.Notatka.Remove(notatka);
+                    dbContext.SaveChanges();
+                }
             }
 
             return Ok();
         }
+
+        public IHttpActionResult PatchNotatka(NotatkaViewModel notatkaVM)
+        {
+            if (!notatkaVM.Id.HasValue)
+                return BadRequest("Brak id notatki do edycji");
+
+            using (var dbContext = new NotatnikEntities())
+            {
+                var notatka = dbContext.Notatka.FirstOrDefault(n => n.Id == notatkaVM.Id.Value);
+                if (notatka == null)
+                    return NotFound();
+
+                if (!string.IsNullOrEmpty(notatkaVM.Tresc))
+                    notatka.Tresc = notatkaVM.Tresc;
+
+                if (!string.IsNullOrEmpty(notatkaVM.Tytul))
+                    notatka.Tytul = notatkaVM.Tytul;
+
+                //notatka.DataDodania = DateTime.Now;
+                dbContext.SaveChanges();
+                return Ok();
+            }
+        }
     }
 }
+
+
+    
